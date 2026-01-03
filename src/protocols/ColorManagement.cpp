@@ -212,12 +212,17 @@ CColorManagementOutput::CColorManagementOutput(SP<CWpColorManagementOutputV1> re
         }
 
         RESOURCE->m_self = RESOURCE;
-        if (!m_output || !m_output->m_monitor.valid())
+        if (!m_output || !m_output->m_monitor.valid()) {
             RESOURCE->m_resource->sendFailed(WP_IMAGE_DESCRIPTION_V1_CAUSE_NO_OUTPUT, "No output");
-        else {
-            RESOURCE->m_settings = m_output->m_monitor->m_imageDescription;
-            RESOURCE->m_resource->sendReady(RESOURCE->m_settings->id());
+            return;
         }
+
+        auto desc = m_output->m_monitor->m_imageDescription;
+        if UNLIKELY (!desc)
+            desc = DEFAULT_IMAGE_DESCRIPTION;
+
+        RESOURCE->m_settings = desc;
+        RESOURCE->m_resource->sendReady(desc->id());
     });
 }
 
@@ -689,6 +694,11 @@ CColorManagementImageDescription::CColorManagementImageDescription(SP<CWpImageDe
         LOGM(Log::TRACE, "Get image information for image={}, id={}", (uintptr_t)r, id);
         if (!m_allowGetInformation) {
             r->error(WP_IMAGE_DESCRIPTION_V1_ERROR_NO_INFORMATION, "Image descriptions doesn't allow get_information request");
+            return;
+        }
+
+        if UNLIKELY (!m_settings) {
+            r->error(WP_IMAGE_DESCRIPTION_V1_ERROR_NO_INFORMATION, "No information available");
             return;
         }
 
